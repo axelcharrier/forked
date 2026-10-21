@@ -128,7 +128,10 @@ pub struct DiffLine {
     pub origin: char,
     pub old_no: Option<u32>,
     pub new_no: Option<u32>,
+    /// Text without the line ending.
     pub content: String,
+    /// The line ends with `\r\n`; kept so partial-staging patches still apply.
+    pub crlf: bool,
 }
 
 #[derive(Clone, Debug)]

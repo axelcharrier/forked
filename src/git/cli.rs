@@ -5,7 +5,6 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::sync::OnceLock;
-use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, bail};
 
@@ -13,8 +12,9 @@ static GIT: OnceLock<String> = OnceLock::new();
 
 fn git() -> &'static str {
     GIT.get_or_init(|| {
-        ["/opt/homebrew/bin/git", "/usr/local/bin/git"]
-            .into_iter()
+        crate::platform::git_candidates()
+            .iter()
+            .copied()
             .find(|p| Path::new(p).exists())
             .unwrap_or("git")
             .to_owned()
@@ -23,8 +23,15 @@ fn git() -> &'static str {
 
 /// Apps started from the Finder get a minimal `PATH`. Borrow the user's
 /// shell `PATH` so hooks (husky, lint-staged, …) find node, python, etc.
-/// Must run before any thread is spawned.
+/// Must run before any thread is spawned. Windows apps inherit the user's
+/// `PATH`, so there is nothing to do there.
+#[cfg(windows)]
+pub fn init_env() {}
+
+#[cfg(not(windows))]
 pub fn init_env() {
+    use std::time::{Duration, Instant};
+
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".into());
     let Ok(mut child) = Command::new(shell)
         .args(["-i", "-l", "-c", "printf '\\n__FORKED_PATH__%s' \"$PATH\""])
@@ -62,7 +69,9 @@ pub fn init_env() {
 
 /// Runs `git <args>` in `cwd`. Returns stdout, or an error carrying git's message.
 pub fn run(cwd: &Path, args: &[String], stdin: Option<&str>) -> Result<String> {
-    let mut child = Command::new(git())
+    let mut cmd = Command::new(git());
+    crate::platform::no_console(&mut cmd);
+    let mut child = cmd
         .current_dir(cwd)
         .args(args)
         .env("GIT_TERMINAL_PROMPT", "0")

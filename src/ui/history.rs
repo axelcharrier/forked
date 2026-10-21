@@ -473,7 +473,7 @@ fn detail(ui: &mut Ui, tab: &mut RepoTab, actions: &mut Vec<Action>) {
                                 if menu_item(ui, "Ouvrir") {
                                     actions.push(Action::Open(abs.clone()));
                                 }
-                                if menu_item(ui, "Afficher dans le Finder") {
+                                if menu_item(ui, crate::platform::REVEAL_LABEL) {
                                     actions.push(Action::Reveal(abs));
                                 }
                             }

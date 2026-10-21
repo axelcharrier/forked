@@ -1,4 +1,4 @@
-//! Colors and fonts, modelled on Fork's macOS look (light and dark).
+//! Colors and fonts, modelled on Fork's look (light and dark).
 
 use egui::{
     Color32, Context, CornerRadius, FontData, FontDefinitions, FontFamily, Margin, Stroke, Theme,
@@ -121,14 +121,16 @@ fn fonts() -> FontDefinitions {
     let mut fonts = FontDefinitions::default();
     let mut proportional = Vec::new();
     let mut monospace = Vec::new();
-    // macOS system fonts, read at runtime (they cannot be redistributed).
-    if let Some(sf) = load_system_font("/System/Library/Fonts/SFNS.ttf") {
-        fonts.font_data.insert("sf".into(), sf.into());
-        proportional.push("sf".to_owned());
+    // System fonts, read at runtime (they cannot be redistributed). egui's
+    // bundled fonts remain as the fallback.
+    let (ui_fonts, mono_fonts) = crate::platform::font_candidates();
+    if let Some(font) = ui_fonts.iter().find_map(|p| load_system_font(p)) {
+        fonts.font_data.insert("system".into(), font.into());
+        proportional.push("system".to_owned());
     }
-    if let Some(mono) = load_system_font("/System/Library/Fonts/SFNSMono.ttf") {
-        fonts.font_data.insert("sfmono".into(), mono.into());
-        monospace.push("sfmono".to_owned());
+    if let Some(font) = mono_fonts.iter().find_map(|p| load_system_font(p)) {
+        fonts.font_data.insert("system_mono".into(), font.into());
+        monospace.push("system_mono".to_owned());
     }
     let mut phosphor = FontData::from_static(include_bytes!("../../assets/fonts/Phosphor.ttf"));
     phosphor.tweak.y_offset_factor = 0.08;

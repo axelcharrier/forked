@@ -308,7 +308,7 @@ fn menu(ui: &mut Ui, tab: &RepoTab, side: DiffSide, target: Target<'_>, actions:
                 }
             }
             ui.separator();
-            if menu_item(ui, "Afficher dans le Finder") {
+            if menu_item(ui, crate::platform::REVEAL_LABEL) {
                 actions.push(Action::Reveal(tab.path().join(dir)));
             }
             if menu_item(ui, "Copier le chemin") {
@@ -351,7 +351,7 @@ fn file_menu(ui: &mut Ui, tab: &RepoTab, side: DiffSide, f: &FileChange, actions
         if menu_item(ui, "Ouvrir le fichier") {
             actions.push(Action::Open(abs.clone()));
         }
-        if menu_item(ui, "Afficher dans le Finder") {
+        if menu_item(ui, crate::platform::REVEAL_LABEL) {
             actions.push(Action::Reveal(abs));
         }
     }
@@ -425,7 +425,7 @@ fn commit_box(ui: &mut Ui, tab: &mut RepoTab, actions: &mut Vec<Action>) {
             } else if tab.status.staged.is_empty() && !tab.amend {
                 resp.on_hover_text("Indexez au moins un fichier")
             } else {
-                resp.on_hover_text("⌘↩")
+                resp.on_hover_text(crate::platform::shortcut("↩"))
             };
             if resp.clicked() {
                 actions.push(Action::Commit);

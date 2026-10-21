@@ -320,6 +320,7 @@ fn conflict_view(root: &Path, path: &str) -> FileDiff {
             old_no: None,
             new_no: Some(i as u32 + 1),
             content: l.to_owned(),
+            crlf: false,
         })
         .collect();
     FileDiff {

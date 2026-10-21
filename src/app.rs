@@ -1,6 +1,5 @@
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::time::Duration;
 
@@ -11,6 +10,7 @@ use egui::{
 };
 
 use crate::git::cli;
+use crate::platform;
 use crate::git::patch::PatchMode;
 use crate::state::AppState;
 use crate::tab::RepoTab;
@@ -353,18 +353,11 @@ impl ForkedApp {
                 ctx.copy_text(text);
                 self.toast(now, "Copié", false);
             }
-            Action::Open(path) => {
-                let _ = Command::new("open").arg(path).spawn();
-            }
-            Action::Reveal(path) => {
-                let _ = Command::new("open").arg("-R").arg(path).spawn();
-            }
+            Action::Open(path) => platform::open(&path),
+            Action::Reveal(path) => platform::reveal(&path),
             Action::OpenTerminal => {
                 if let Some(tab) = self.tabs.get(self.active) {
-                    let _ = Command::new("open")
-                        .args(["-a", "Terminal"])
-                        .arg(tab.path())
-                        .spawn();
+                    platform::open_terminal(tab.path());
                 }
             }
             Action::OpenRepo => {
@@ -424,17 +417,20 @@ impl ForkedApp {
     fn tab_bar(&self, ui: &mut Ui, actions: &mut Vec<Action>) {
         let p = theme::of(ui);
         let full = ui.max_rect();
-        // The tab strip doubles as the window's title bar.
-        let bar = ui.interact(full, Id::unique("titlebar"), Sense::click_and_drag());
-        if bar.drag_started() {
-            ui.ctx().send_viewport_cmd(ViewportCommand::StartDrag);
-        }
-        if bar.double_clicked() {
-            let maximized = ui.input(|i| i.viewport().maximized.unwrap_or(false));
-            ui.ctx().send_viewport_cmd(ViewportCommand::Maximized(!maximized));
-        }
-
-        let left = full.left() + 84.0; // room for the traffic lights
+        let left = if platform::TABS_IN_TITLEBAR {
+            // The tab strip doubles as the window's title bar.
+            let bar = ui.interact(full, Id::unique("titlebar"), Sense::click_and_drag());
+            if bar.drag_started() {
+                ui.ctx().send_viewport_cmd(ViewportCommand::StartDrag);
+            }
+            if bar.double_clicked() {
+                let maximized = ui.input(|i| i.viewport().maximized.unwrap_or(false));
+                ui.ctx().send_viewport_cmd(ViewportCommand::Maximized(!maximized));
+            }
+            full.left() + 84.0 // room for the traffic lights
+        } else {
+            full.left() + 8.0
+        };
         let count = self.tabs.len() + usize::from(self.welcome_tab || self.tabs.is_empty());
         let avail = full.right() - left - 48.0;
         let tab_w = (avail / count.max(1) as f32).clamp(120.0, 240.0);
@@ -498,7 +494,7 @@ impl ForkedApp {
             painter.rect_filled(plus, 6.0, p.hover);
         }
         painter.text(plus.center(), Align2::CENTER_CENTER, icons::PLUS, FontId::proportional(15.0), p.weak);
-        if plus_resp.on_hover_text("Nouvel onglet (⌘T)").clicked() {
+        if plus_resp.on_hover_text(format!("Nouvel onglet ({})", platform::shortcut("T"))).clicked() {
             actions.push(Action::NewTab);
         }
     }

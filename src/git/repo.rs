@@ -474,12 +474,14 @@ impl GitRepo {
                         _ => continue,
                     };
                     let mut content = String::from_utf8_lossy(line.content()).into_owned();
+                    let mut crlf = false;
                     if origin == '\\' {
                         content = "No newline at end of file".into();
                     } else if content.ends_with('\n') {
                         content.pop();
                         if content.ends_with('\r') {
                             content.pop();
+                            crlf = true;
                         }
                     }
                     lines.push(DiffLine {
@@ -487,6 +489,7 @@ impl GitRepo {
                         old_no: line.old_lineno(),
                         new_no: line.new_lineno(),
                         content,
+                        crlf,
                     });
                 }
                 fd.hunks.push(Hunk {

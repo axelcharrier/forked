@@ -66,11 +66,11 @@ pub fn show(ui: &mut Ui, tab: &RepoTab, busy: &[String], actions: &mut Vec<Actio
             if tool_button(ui, icons::TERMINAL, "Terminal", true, 0).clicked() {
                 actions.push(Action::OpenTerminal);
             }
-            if tool_button(ui, icons::FOLDER_OPEN, "Finder", true, 0).clicked() {
+            if tool_button(ui, icons::FOLDER_OPEN, crate::platform::FILE_MANAGER, true, 0).clicked() {
                 actions.push(Action::Open(tab.path().clone()));
             }
             if tool_button(ui, icons::REFRESH, "Actualiser", true, 0)
-                .on_hover_text("⌘R")
+                .on_hover_text(crate::platform::shortcut("R"))
                 .clicked()
             {
                 actions.push(Action::Refresh);

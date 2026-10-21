@@ -89,6 +89,9 @@ pub fn build(
         }
         body.push(origin);
         body.push_str(&l.content);
+        if l.crlf {
+            body.push('\r');
+        }
         body.push('\n');
         last_written = true;
     }
@@ -114,6 +117,7 @@ mod tests {
             old_no: None,
             new_no: None,
             content: content.into(),
+            crlf: false,
         }
     }
 
@@ -206,6 +210,44 @@ mod tests {
         assert!(git(&["diff", "--cached"]).is_empty());
         // The working tree still has both changes.
         assert!(git(&["diff"]).contains("+D"));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// CRLF files must keep their `\r` or `git apply` rejects the patch.
+    #[test]
+    fn partial_stage_of_a_crlf_file() {
+        use crate::git::repo::GitRepo;
+        use crate::git::{DiffSide, cli};
+
+        let dir = std::env::temp_dir().join(format!("forked-crlf-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let git = |args: &[&str]| {
+            let args: Vec<String> = args.iter().map(|s| s.to_string()).collect();
+            cli::run(&dir, &args, None).unwrap()
+        };
+        git(&["init", "-q"]);
+        git(&["config", "user.email", "t@t"]);
+        git(&["config", "user.name", "t"]);
+        git(&["config", "core.autocrlf", "false"]);
+        std::fs::write(dir.join("f.txt"), "a\r\nb\r\nc\r\n").unwrap();
+        git(&["add", "."]);
+        git(&["commit", "-qm", "init"]);
+        std::fs::write(dir.join("f.txt"), "a\r\nB\r\nc\r\nd\r\n").unwrap();
+
+        let repo = GitRepo::open(&dir).unwrap();
+        let diff = repo.working_diff("f.txt", DiffSide::Unstaged, 3).unwrap();
+        let sel: BTreeSet<usize> = diff.hunks[0]
+            .lines
+            .iter()
+            .enumerate()
+            .filter(|(_, l)| l.content == "b" || l.content == "B")
+            .map(|(i, _)| i)
+            .collect();
+        let p = build(&diff, 0, Some(&sel), PatchMode::Stage).unwrap();
+        cli::run(&dir, &PatchMode::Stage.apply_args(), Some(&p)).unwrap();
+        let staged = git(&["show", ":f.txt"]);
+        assert_eq!(staged, "a\r\nB\r\nc");
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
